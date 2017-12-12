@@ -7,9 +7,6 @@
 #include <GL/glu.h>
 #define M 23
 using namespace std;
-double lookX = 0, lookY = 0, lookZ = M / 2;
-double centerX = 0, centerY = 0, centerZ = 0;
-double upX = 0, upY = 1, upZ = 0;
 
 class Grid {
 public:
@@ -83,7 +80,7 @@ void OutMaze() {
 		for (int j = 0; j<M; j++) {
 			if (maze[i][j].dig)
 				cout << "  ";
-			else cout << "¡ö";
+			else cout << "â– ";
 		}
 		cout << endl;
 	}
@@ -167,35 +164,35 @@ void print() {
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
 			if (table[i][j])
-				cout << "¡ö";
+				cout << "â– ";
 			else cout << "  ";
 		}
 		cout << endl;
 	}
 }
+int x_p = 1, y_p = 1;
+double lookX = 0, lookY = 0, lookZ = M / 2;
+double centerX = 0, centerY = 0, centerZ = 0;
+double upX = -1, upY = 0, upZ = 0;
+bool draw_road, light = 1;
 void init() {
-
-	glClearColor(0.5, 0.5, 0.5, 1);//ÓÃ»ÒÉ«ÇåÆÁ
-	glEnable(GL_DEPTH_TEST);//¿ªÆôÉî¶È²âÊÔ
-	glEnable(GL_TEXTURE_2D);//ÆôÓÃ¶þÎ¬ÎÆÀí
+	glClearColor(0.5, 0.5, 0.5, 1);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_2D);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(50, 1, 0.5, 100);/*ÆäÊµÒ»¿ªÊ¼ZNearÉèµÄÊÇ1~*/
+	gluPerspective(50, 1, 0.5, 100);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-
 	gluLookAt(lookX, lookY, lookZ, centerX, centerY, centerZ, upX, upY, upZ);
-
-	glShadeModel(GL_SMOOTH);     //Ê¹ÓÃÆ½»¬Ã÷°µ´¦Àí  
-	glEnable(GL_DEPTH_TEST);     //ÌÞ³ýÒþ²ØÃæ  
-	glEnable(GL_CULL_FACE);      //²»¼ÆËã¶à±ßÐÎ±³Ãæ  
-	glFrontFace(GL_CCW);      //¶à±ßÐÎÄæÊ±Õë·½ÏòÎªÕýÃæ
+	glShadeModel(GL_SMOOTH);      
+	glEnable(GL_DEPTH_TEST);     
+	glEnable(GL_CULL_FACE);     
+	glFrontFace(GL_CCW);   
 
 	{
-		//ÈýÊÓÍ¼¹âÔ´
-		GLfloat light0_position[] = { 10.0f, 10.0f, 0.0f, 1.0f };
+		GLfloat light0_position[] = { 10.0f, 10.0f, 10.0f, 1.0f };
 		GLfloat light0_ambient[] = { 0.8f, 0.8f, 0.8f, 1.0f };
 		GLfloat light0_diffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -203,18 +200,41 @@ void init() {
 		glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
 		glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
 
-		//Ò»ÊÓÍ¼¹âÔ´
 		GLfloat light1_position[] = { 10.0f, 10.0f, 0.0f, 1.0f };
 		GLfloat light1_ambient[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 		GLfloat light1_diffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		GLfloat light1_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 		glLightfv(GL_LIGHT1, GL_POSITION, light1_position);
-		glEnable(GL_LIGHTING);//¿ªÆô¹âÕÕÃ÷
-		glEnable(GL_DEPTH_TEST);
 	}
 }
-
+void drawquard(double x, double y, double z) {
+	glPushMatrix();
+	glTranslatef(x, y, z);
+	glColor3f(1, 0, 0);
+	glBegin(GL_QUADS);
+	glNormal3f(0.0f, 0.0f, 1.0f);
+	glVertex3f(0.5f, 0.5f, 0.5f);
+	glVertex3f(-0.5f, 0.5f, 0.5f);
+	glVertex3f(-0.5f, -0.5f, 0.5f);
+	glVertex3f(0.5f, -0.5f, 0.5f);
+	glEnd();
+	glPopMatrix();
+}
+void draw_map() {
+	if (draw_road == 1) {
+		glPushMatrix();
+		for (int i = 0; i < M; i++) {
+			for (int j = 0; j < M; j++) {
+				if (table[i][j] == 1) {
+					drawquard(i, j, -20);
+				}
+			}
+		}
+		glPopMatrix();
+	}
+	glutPostRedisplay();
+}
 void drawCube(double x, double y, double z) {
 
 	glPushMatrix();
@@ -286,61 +306,95 @@ void drawMaze() {
 	glPushMatrix();
 	int m = (M + 1) / 2;
 	glTranslatef(-m, -m, 0);
-	drawCube(x_p, M - y_p, -20);
+	drawCube(x_p,  y_p, -20);
 	for (int i = 0; i < M; i++) {
 		for (int j = 0; j < M; j++) {
 			if (maze[i][j].dig == 0) {
-				drawCube(j, M - i, -20);
+				drawCube(i, j, -20);
 			}
 		}
 	}
+	draw_map();
 	glPopMatrix();
 }
 void display() {
 
 	drawMaze();
 	glutSwapBuffers();
+	if (light == 1) {
+		glEnable(GL_LIGHTING);
+		glEnable(GL_DEPTH_TEST);
+	}
 	glutPostRedisplay();
-
 }
-double x_p = 1, y_p = 1;
 void SpecialKeys(unsigned char key, int x, int y) {
 	switch (key){
-		case 'w':
+		case 'a':
 			if (y_p == 1) {
 				break;
 			}
 			else if (y_p > 1) {
-				y_p--;
-				break;
+				if (maze[x_p][y_p-1].dig == 0) {
+					break;
+				}
+				else {
+					y_p--;
+					break;
+				}
 			}
-			break;
-		case 's':
+		case 'd':
 			if (y_p == M-2) {
 				break;
 			}
 			else if (y_p < M-2) {
-				y_p++;
-				break;
+				if (maze[x_p][y_p+1].dig == 0) {
+					break;
+				}
+				else {
+					y_p++;
+					break;
+				}
 			}
-			break;
-		case 'a':
+		case 'w':
 			if (x_p == 1) {
 				break;
 			}
 			else if (x_p > 1) {
-				x_p--;
-				break;
+				if (maze[x_p-1][y_p].dig == 0) {
+					break;
+				}
+				else {
+					x_p--;
+					break;
+				}
 			}
-			break;
-		case 'd':
+		case 's':
 			if (x_p == M-2) {
 				break;
 			}
 			else if (x_p < M-2) {
-				x_p++;
-				break;
+				if (maze[x_p+1][y_p].dig == 0) {
+					break;
+				}
+				else {
+					x_p++;
+					break;
+				}
 			}
+		case 'm':
+			if (draw_road == 0) { draw_road = 1; light = 0; break; }
+			if (draw_road == 1) { draw_road = 0; light = 1; break; }
+		case '4':
+			centerY += 0.2;
+			break;
+		case '6':
+			centerY -= 0.2;
+			break;
+		case '8':
+			centerX += 0.2;
+			break;
+		case '2':
+			centerX -= 0.2;
 			break;
 	}
 	glutPostRedisplay();
@@ -348,13 +402,14 @@ void SpecialKeys(unsigned char key, int x, int y) {
 int main(int argc, char **argv) {
 	Init();
 	GenMaze();
+	OutMaze();
 	DFS();
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 
 	glutInitWindowPosition(300, 50);
 	glutInitWindowSize(700, 700);
-	glutCreateWindow("ÃÔ¹¬");
+	glutCreateWindow("è¿·å®«");
 	init();
 	glutDisplayFunc(display);
 	glutKeyboardFunc(SpecialKeys);

@@ -1,0 +1,364 @@
+#include <iostream>  
+#include <ctime>  
+#include <cstdlib>  
+#include <stack>  
+#include <vector> 
+#include <GL/glut.h>
+#include <GL/glu.h>
+#define M 23
+using namespace std;
+double lookX = 0, lookY = 0, lookZ = M / 2;
+double centerX = 0, centerY = 0, centerZ = 0;
+double upX = 0, upY = 1, upZ = 0;
+
+class Grid {
+public:
+	bool cell, dig;
+};
+Grid maze[M][M];
+stack<int> row_s, col_s;
+void Init() {
+	for (int i = 0; i<M; i++) {
+		for (int j = 0; j<M; j++) {
+			maze[i][j].dig = false;
+			if (i % 2 != 0 && j % 2 != 0)
+				maze[i][j].cell = true;
+		}
+	}
+	row_s.push(1);
+	col_s.push(1);
+	srand(time(0));
+}
+int DirRand() {
+	vector <int> dirlist;
+	int result = 0;
+	int row = row_s.top(), col = col_s.top();
+	if (row - 2>0 && !maze[row - 2][col].dig) {
+		dirlist.push_back(0);
+	}
+	if (row + 2<M - 1 && !maze[row + 2][col].dig) {
+		dirlist.push_back(1);
+	}
+	if (col - 2>0 && !maze[row][col - 2].dig) {
+		dirlist.push_back(2);
+	}
+	if (col + 2<M - 1 && !maze[row][col + 2].dig) {
+		dirlist.push_back(3);
+	}
+	if (dirlist.size() == 0) result = -1;
+	else result = dirlist[rand() % ((int)dirlist.size())];
+	return result;
+}
+
+void GenMaze() {
+	while (!row_s.empty() && !col_s.empty()) {
+		int dir = DirRand();
+		int row = row_s.top(), col = col_s.top();
+		if (dir != -1) {
+			if (dir == 0) {
+				maze[row - 2][col].dig = maze[row - 1][col].dig = true;
+				row_s.push(row - 2);  col_s.push(col);
+			}
+			else if (dir == 1) {
+				maze[row + 2][col].dig = maze[row + 1][col].dig = true;
+				row_s.push(row + 2);  col_s.push(col);
+			}
+			else if (dir == 2) {
+				maze[row][col - 2].dig = maze[row][col - 1].dig = true;
+				row_s.push(row);    col_s.push(col - 2);
+			}
+			else if (dir == 3) {
+				maze[row][col + 2].dig = maze[row][col + 1].dig = true;
+				row_s.push(row);    col_s.push(col + 2);
+			}
+		}
+		else {
+			row_s.pop();    col_s.pop();
+		}
+	}
+}
+
+void OutMaze() {
+	for (int i = 0; i<M; i++) {
+		for (int j = 0; j<M; j++) {
+			if (maze[i][j].dig)
+				cout << "  ";
+			else cout << "■";
+		}
+		cout << endl;
+	}
+}
+
+const int width = M;
+const int height = M;
+
+int dx[4] = { 0,0,-1,1 };
+int dy[4] = { -1,1,0,0 };
+const int maxLevels = 1000;
+int maxAct = 4;
+int table[width][height] = { 0 };
+int level = -1;
+int levelComplete = 0;
+int allComplete = 0;
+int Act[maxLevels] = { 0 };
+
+int x = 1, y = 1;
+int targetX = height - 2, targetY = width - 2;
+
+void test() {
+	if (x == targetX && y == targetY) {
+		levelComplete = allComplete = 1;
+		cout << "Get to destination Success" << endl;
+	}
+}
+
+int actOK() {
+	int nextX = x + dx[Act[level] - 1];
+	int nextY = y + dy[Act[level] - 1];
+	if (Act[level] > maxAct)
+		return 0;
+	if (nextX >= height || nextX < 0)
+		return 0;
+	if (nextY >= width || nextY < 0)
+		return 0;
+	if (table[nextX][nextY] == 1)
+		return 0;
+	if (maze[nextX][nextY].dig == 0)
+		return 0;
+	x = nextX;
+	y = nextY;
+	table[nextX][nextY] = 1;
+	return 1;
+}
+
+void back() {
+	table[x][y] = 0;
+	x -= dx[Act[level - 1] - 1];
+	y -= dy[Act[level - 1] - 1];
+	Act[level] = 0;
+	--level;
+}
+
+void DFS() {
+	table[x][y] = 1;
+	while (!allComplete) {
+		++level;
+		levelComplete = 0;
+		while (!levelComplete) {
+			++Act[level];
+			if (actOK()) {
+				test();
+				levelComplete = 1;
+			}
+			else {
+				if (Act[level] > maxLevels) {
+					back();
+				}
+				if (level < 0) {
+					levelComplete = allComplete = 1;
+				}
+			}
+		}
+	}
+}
+
+void print() {
+	cout << "The path is " << endl;
+	for (int i = 0; i < height; ++i) {
+		for (int j = 0; j < width; ++j) {
+			if (table[i][j])
+				cout << "■";
+			else cout << "  ";
+		}
+		cout << endl;
+	}
+}
+void init() {
+
+	glClearColor(0.5, 0.5, 0.5, 1);//用灰色清屏
+	glEnable(GL_DEPTH_TEST);//开启深度测试
+	glEnable(GL_TEXTURE_2D);//启用二维纹理
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(50, 1, 0.5, 100);/*其实一开始ZNear设的是1~*/
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	gluLookAt(lookX, lookY, lookZ, centerX, centerY, centerZ, upX, upY, upZ);
+
+	glShadeModel(GL_SMOOTH);     //使用平滑明暗处理  
+	glEnable(GL_DEPTH_TEST);     //剔除隐藏面  
+	glEnable(GL_CULL_FACE);      //不计算多边形背面  
+	glFrontFace(GL_CCW);      //多边形逆时针方向为正面
+
+	{
+		//三视图光源
+		GLfloat light0_position[] = { 10.0f, 10.0f, 0.0f, 1.0f };
+		GLfloat light0_ambient[] = { 0.8f, 0.8f, 0.8f, 1.0f };
+		GLfloat light0_diffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+		glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
+		glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
+
+		//一视图光源
+		GLfloat light1_position[] = { 10.0f, 10.0f, 0.0f, 1.0f };
+		GLfloat light1_ambient[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		GLfloat light1_diffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		GLfloat light1_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+		glLightfv(GL_LIGHT1, GL_POSITION, light1_position);
+		glEnable(GL_LIGHTING);//开启光照明
+		glEnable(GL_DEPTH_TEST);
+	}
+}
+
+void drawCube(double x, double y, double z) {
+
+	glPushMatrix();
+	glTranslatef(x, y, z);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glBegin(GL_QUADS);
+	glNormal3f(0.0f, 1.0f, 0.0f);
+	glVertex3f(0.5f, 0.5f, 0.5f);
+	glVertex3f(0.5f, 0.5f, -0.5f);
+	glVertex3f(-0.5f, 0.5f, -0.5f);
+	glVertex3f(-0.5f, 0.5f, 0.5f);
+	glEnd();
+	glBegin(GL_QUADS);
+	glNormal3f(0.0f, -1.0f, 0.0f);
+	glVertex3f(0.5f, -0.5f, 0.5f);
+	glVertex3f(-0.5f, -0.5f, 0.5f);
+	glVertex3f(-0.5f, -0.5f, -0.5f);
+	glVertex3f(0.5f, -0.5f, -0.5f);
+	glEnd();
+	glBegin(GL_QUADS);
+	glNormal3f(0.0f, 0.0f, 1.0f);
+	glVertex3f(0.5f, 0.5f, 0.5f);
+	glVertex3f(-0.5f, 0.5f, 0.5f);
+	glVertex3f(-0.5f, -0.5f, 0.5f);
+	glVertex3f(0.5f, -0.5f, 0.5f);
+	glEnd();
+	glBegin(GL_QUADS);
+	glNormal3f(0.0f, 0.0f, -1.0f);
+	glVertex3f(0.5f, 0.5f, -0.5f);
+	glVertex3f(0.5f, -0.5f, -0.5f);
+	glVertex3f(-0.5f, -0.5f, -0.5f);
+	glVertex3f(-0.5f, 0.5f, -0.5f);
+	glEnd();
+	glBegin(GL_QUADS);
+	glNormal3f(-1.0f, 0.0f, 0.0f);
+	glVertex3f(-0.5f, 0.5f, 0.5f);
+	glVertex3f(-0.5f, 0.5f, -0.5f);
+	glVertex3f(-0.5f, -0.5f, -0.5f);
+	glVertex3f(-0.5f, -0.5f, 0.5f);
+	glEnd();
+	glBegin(GL_QUADS);
+	glNormal3f(1.0f, 0.0f, 0.0f);
+	glVertex3f(0.5f, 0.5f, 0.5f);
+	glVertex3f(0.5f, -0.5f, 0.5f);
+	glVertex3f(0.5f, -0.5f, -0.5f);
+	glVertex3f(0.5f, 0.5f, -0.5f);
+	glEnd();
+	glPopMatrix();
+}
+void drawMaze() {
+	glEnable(GL_SCISSOR_TEST);
+	glScissor(0, 0, 700, 700);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_SCISSOR_TEST);
+
+	glViewport(0, 0, 700, 700);
+
+	glEnable(GL_LIGHT0);
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(50, 1, 0.5, 100);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	gluLookAt(lookX, lookY, lookZ, centerX, centerY, centerZ, upX, upY, upZ);
+
+	glPushMatrix();
+	int m = (M + 1) / 2;
+	glTranslatef(-m, -m, 0);
+	drawCube(x_p, M - y_p, -20);
+	for (int i = 0; i < M; i++) {
+		for (int j = 0; j < M; j++) {
+			if (maze[i][j].dig == 0) {
+				drawCube(j, M - i, -20);
+			}
+		}
+	}
+	glPopMatrix();
+}
+void display() {
+
+	drawMaze();
+	glutSwapBuffers();
+	glutPostRedisplay();
+
+}
+double x_p = 1, y_p = 1;
+void SpecialKeys(unsigned char key, int x, int y) {
+	switch (key){
+		case 'w':
+			if (y_p == 1) {
+				break;
+			}
+			else if (y_p > 1) {
+				y_p--;
+				break;
+			}
+			break;
+		case 's':
+			if (y_p == M-2) {
+				break;
+			}
+			else if (y_p < M-2) {
+				y_p++;
+				break;
+			}
+			break;
+		case 'a':
+			if (x_p == 1) {
+				break;
+			}
+			else if (x_p > 1) {
+				x_p--;
+				break;
+			}
+			break;
+		case 'd':
+			if (x_p == M-2) {
+				break;
+			}
+			else if (x_p < M-2) {
+				x_p++;
+				break;
+			}
+			break;
+	}
+	glutPostRedisplay();
+}
+int main(int argc, char **argv) {
+	Init();
+	GenMaze();
+	DFS();
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
+
+	glutInitWindowPosition(300, 50);
+	glutInitWindowSize(700, 700);
+	glutCreateWindow("迷宫");
+	init();
+	glutDisplayFunc(display);
+	glutKeyboardFunc(SpecialKeys);
+	glutMainLoop();
+
+	return 0;
+}
